@@ -91,14 +91,14 @@ void loop() {
   }
   
   if(display_time){
-    //arr_display(time_digit);
     matrix_display(time_digit);
     matrix.writeDisplay();     //normal time display
   }else{
     change_digit(change_p);
     blink_digit(change_p);
+    Serial.println("there");
     mov = digitalRead(move_pin);
-    if(mov ==0 && millis()>lastDebounceTime_move){   //debouncing 
+    if(mov ==0 && millis()>lastDebounceTime_move){ //debouncing 
       change_p += 1;
       if(change_p == 2) change_p = 3;
       if(change_p == 5){
@@ -128,12 +128,14 @@ void print_arr(char arr[]){
 }
 
 void print_current_weather(){
+  lcd.clear();
   print_arr(city);
   lcd.print(" ");
   print_arr(temp);
   lcd.setCursor(0, 1);  
   print_arr(weather);
   lcd.setCursor(0,0);
+  clear_all();
 }
 
 void clear_inData(){
@@ -142,6 +144,20 @@ void clear_inData(){
   }
 }
 
+void clear_all(){
+  for(int i=1;i<arr_length;i++){
+       city[i] = (char) 0;
+  }
+  for(int i=1;i<arr_length;i++){
+       weather[i] = (char) 0;
+  }
+  for(int i=1;i<arr_length;i++){
+       precip[i] = (char) 0;
+  }
+  for(int i=1;i<arr_length;i++){
+       temp[i] = (char) 0;
+  }
+}
 void update_info(char first_digit, int index){
    if(first_digit == '$'){
      for(int i=1;i<index;i++){
@@ -161,7 +177,6 @@ void update_info(char first_digit, int index){
      for(int i=1;i<index;i++){
        temp[i] = inData[i];
        start_printing = true;
-
      }
    }else if(first_digit == '/'){
      for(int i=1;i<index;i++){
@@ -202,6 +217,7 @@ void matrix_display(int arr[]){
 }
 
 void blink_digit(int blink_point){
+  
   int half_blink_period = 350;
   unsigned long t = millis();
   if(t>nextTime){

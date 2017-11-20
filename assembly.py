@@ -4,42 +4,97 @@ from urllib.request import urlopen
 import json
 import RPi.GPIO as GPIO
 import time
+import csv
+ser = serial.Serial('/dev/ttyACM0',9600)
+
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
-
-def weather():
-    hot_pin = 14
-    warm_pin = 15
-    cold_pin = 18
-    GPIO.setup(hot_pin,GPIO.OUT)
-    GPIO.setup(warm_pin,GPIO.OUT)
-    GPIO.setup(cold_pin,GPIO.OUT)
-    file = urlopen('http://api.wunderground.com/api/c72540fc54d39cb9/geolookup/conditions/q/MO/St_Louis.json')
-    json_string = file.read().decode("utf-8") #decode the bytes to string
-    parsed_json = json.loads(json_string)
-
-    location = parsed_json['location']['city']
-    temp_f = parsed_json['current_observation']['temp_f']
-    weather = parsed_json['current_observation']['weather']
-    precip_today = parsed_json['current_observation']['precip_today_in']
-
-    print ("Current weather in %s: %s" % (location, weather))
-    print ("Current temperature in %s: %s" % (location, temp_f))
-    print ("Precipitation today in %s will be: ~%s inches" % (location, precip_today))
-    m = "Precipitation today in %s will be: ~%s inches" % (location, precip_today)
+hot_pin = 14
+warm_pin = 15
+cold_pin = 18
+GPIO.setup(hot_pin,GPIO.OUT)
+GPIO.setup(warm_pin,GPIO.OUT)
+GPIO.setup(cold_pin,GPIO.OUT)
     
-    if(temp_f>80):
+def LED(temp):
+    if(temp>80):
         GPIO.output(hot_pin,GPIO.HIGH)
         GPIO.output(warm_pin,GPIO.LOW)
         GPIO.output(cold_pin,GPIO.LOW)
-    elif(temp_f>60):
+    elif(temp>60):
         GPIO.output(hot_pin,GPIO.LOW)
-        GPIO.outpuSt(warm_pin,GPIO.HIGH)
+        GPIO.output(warm_pin,GPIO.HIGH)
         GPIO.output(cold_pin,GPIO.LOW)
     else:
         GPIO.output(hot_pin,GPIO.LOW)
         GPIO.output(warm_pin,GPIO.LOW)
         GPIO.output(cold_pin,GPIO.HIGH)
+
+city_file = urlopen('https://www.wunderground.com/about/faq/US_cities.asp')
+
+txt = city_file.read().decode()
+first_point = txt.index('Central')
+end_point = txt.index('Peipeinimaru')
+new_txt = txt[first_point:end_point]  #eliminate other data from website
+txt_list = list(new_txt)
+txt_list.insert(0,'\n')
+dict_city = {}
+
+city = ' '
+state = ' ' 
+space_index = 0
+init_index = 0
+entries = txt_list.count('\n')
+
+def get_str(start, end):
+    result  = str('')
+    for i in range(start, end):
+        result = result + str(txt_list[i])
+    return result
+
+for i in range(entries-1):
+        space_index = txt_list.index(' ')
+        while txt_list[space_index+1] !=  ' ':
+            #print(space_index)
+            temp = txt_list[space_index + 1:]
+            space_index = temp.index(' ')+space_index+1
+        city = get_str(init_index+1,space_index)
+        city = city.replace(' ', '_')
+        state = get_str(init_index+31,init_index+33)
+        dict_city[i] =  state + '/' + city
+        #print(dict_city[i])
+        txt_list.pop(0)
+        txt_list = txt_list[txt_list.index('\n'):]
+
+def get_json(city_num):
+    url_str = dict_city[city_num]
+    file = urlopen('http://api.wunderground.com/api/c72540fc54d39cb9/geolookup/conditions/q/'+url_str+'.json')
+    json_string = file.read().decode("utf-8") #decode the bytes to string
+    parsed_json = json.loads(json_string)
+    return parsed_json
+
+def get_min(string):
+    colon_digit = string.index(':')
+    return string[colon_digit+1:colon_digit+3]
+
+def get_hour(string):
+    colon_digit = string.index(':')
+    return string[colon_digit-2:colon_digit]
+    
+
+def weather(parsed_json):
+    location = parsed_json['location']['city']
+    temp_f = parsed_json['current_observation']['temp_f']
+    weather = parsed_json['current_observation']['weather']
+    precip_today = parsed_json['current_observation']['precip_today_in']
+    local_time_str= parsed_json['current_observation']['local_time_rfc822']
+    
+    LED(temp_f)
+    print (local_time_str)
+    print ("Current weather in %s: %s" % (location, weather))
+    print ("Current temperature in %s: %s" % (location, temp_f))
+    print ("Precipitation today in %s will be: ~%s inches" % (location, precip_today))
+    m = "Precipitation today in %s will be: ~%s inches" % (location, precip_today)
 
     locationE = location.encode()
     temp_E = str(temp_f).encode()
@@ -61,25 +116,29 @@ def weather():
     ser.write("+".encode())
     ser.write(temp_E)
     ser.write("!".encode())
+    
+    
 
-    file.close()
-    
-    
-ser = serial.Serial('/dev/ttyACM0',9600)
 ex_hour =0
 ex_min = 0
 stop_check = 1
-
-while(stop_check == 1):
-    hour = time.localtime().tm_hour
+city_num = 850
+last_city_num = -1
+while(city_num != -1):
+    offset_str = get_json(city_num)['current_observation']['local_tz_offset']
+    offset = int(offset_str[:3]) +6
+    hour = time.localtime().tm_hour + offset
     min = time.localtime().tm_min
     print(hour)
     print(min)
     if(ser.isOpen()==False):
         ser.open()
+    if(last_city_num != city_num):    #update weather even without changing time zone
+        weather(get_json(city_num))
+        last_city_num = city_num
     if ex_hour != hour:
         if(ser.isOpen):
-            weather()
+            weather(get_json(city_num))
             ex_hour = hour
             ser.write("/".encode())
             if hour<10:
@@ -102,6 +161,6 @@ while(stop_check == 1):
             n = ser.write(b'%d'%min)
             ser.write("!".encode())
             ser.close()
-    stop_check = int(input("press 0 to stop, 1 to continue"))
+    city_num = int(input("press  to stop, city num to continue"))
 
                                                                                                                      
