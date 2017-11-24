@@ -4,6 +4,7 @@
 #include "Time.h"﻿
 #include <Adafruit_RGBLCDShield.h>
 #include <utility/Adafruit_MCP23017.h>
+#include "city_state.h"
 
 //setting up pins
 Adafruit_7segment matrix = Adafruit_7segment();
@@ -47,6 +48,12 @@ char inChar; // Where to store the character read
 byte index = 0; // Index into array; where to store the character
 boolean start_printing = false;
 
+int buttons = 0;
+int state_count = 0;
+boolean select_state = false;
+boolean select_city = false;
+unsigned long lastDebounceTime_but = 0;
+
 void setup() {
 #ifndef __AVR_ATtiny85__
   Serial.begin(9600);
@@ -62,6 +69,7 @@ void setup() {
   time_setup = false;
   lcd.begin(16, 2);
   lcd.setBacklight(GREEN);
+  Serial.println("ready to go");
 }
 
 void loop() {
@@ -110,6 +118,17 @@ void loop() {
     }
     matrix.writeDisplay();
   }
+  //Serial.print(33);
+  //buttons = lcd.readButtons();
+  //Serial.println(buttons);
+  /*if(buttons == 1 && millis()>lastDebounceTime_but){
+      Serial.println(33);
+      select_state = true;
+      lastDebounceTime_but = millis() + debounceDelay;
+  }
+  if(select_state){
+    state_count = choose_state(state_count);
+  }*/
   
   if(compare_time(time_digit, digit) && time_setup){
     Serial.println("working");
@@ -117,6 +136,30 @@ void loop() {
   } 
 }
 
+int choose_state(int st_count){
+  switch(buttons){
+    case 2:  //right
+      Serial.print("right");
+      st_count = st_count + 1;
+      break;
+    case 16:  //right
+      Serial.print("left");
+      st_count = st_count - 1;
+      if(st_count <0) st_count = 0;
+      break;
+    case 8:  //up
+      Serial.print("up");
+      st_count = st_count - 5;
+      if(st_count <0) st_count = 0;
+      break;
+    case 4:  //down
+      Serial.print("down");
+      st_count = st_count + 5;
+      break;
+  }
+  return st_count;
+}
+  
 void print_arr(char arr[]){
   int i = 0;
   for(i = 0;i<20;i++){
