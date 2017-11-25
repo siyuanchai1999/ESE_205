@@ -5,7 +5,7 @@ import json
 import RPi.GPIO as GPIO
 import time
 import csv
-ser = serial.Serial('/dev/ttyACM0',9600)
+ser = serial.Serial('/dev/ttyACM1',9600,timeout =0.3)
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -80,8 +80,23 @@ def get_min(string):
 def get_hour(string):
     colon_digit = string.index(':')
     return string[colon_digit-2:colon_digit]
-    
-
+  
+def write_city_name(line):
+    str_line = line.decode()
+    if(str_line[0] == "#"):
+        c_num = int(str_line[1:str_line.index('\r')])
+        c_str_1 = dict_city[c_num][3:]
+        c_str_2 = dict_city[c_num+1][3:]
+        print(c_str_1)
+        print(c_str_2)
+        ser.write("(".encode())
+        ser.write(c_str_1.encode())
+        ser.write("!".encode())
+        ser.write(")".encode())
+        ser.write(c_str_2.encode())
+        ser.write("!".encode())
+                         
+        
 def weather(parsed_json):
     location = parsed_json['location']['city']
     temp_f = parsed_json['current_observation']['temp_f']
@@ -125,17 +140,24 @@ stop_check = 1
 city_num = 850
 last_city_num = -1
 while(city_num != -1):
-    offset_str = get_json(city_num)['current_observation']['local_tz_offset']
-    offset = int(offset_str[:3]) +6
-    hour = time.localtime().tm_hour + offset
-    min = time.localtime().tm_min
-    print(hour)
-    print(min)
+    
+    
     if(ser.isOpen()==False):
         ser.open()
+    if(ser.in_waiting>0):
+        line = ser.readline()
+        if(line!= b''):
+            print(line)
+            write_city_name(line)
     if(last_city_num != city_num):    #update weather even without changing time zone
         weather(get_json(city_num))
         last_city_num = city_num
+        offset_str = get_json(city_num)['current_observation']['local_tz_offset']
+        offset = int(offset_str[:3]) +6
+        
+    hour = time.localtime().tm_hour + offset
+    min = time.localtime().tm_min
+    
     if ex_hour != hour:
         if(ser.isOpen):
             weather(get_json(city_num))
@@ -161,6 +183,6 @@ while(city_num != -1):
             n = ser.write(b'%d'%min)
             ser.write("!".encode())
             ser.close()
-    city_num = int(input("press  to stop, city num to continue"))
+    #city_num = int(input("press  to stop, city num to continue"))
 
                                                                                                                      
