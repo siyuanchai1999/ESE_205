@@ -95,17 +95,20 @@ def write_city_name(line):
         ser.write(")".encode())
         ser.write(c_str_2.encode())
         ser.write("!".encode())
-                         
+
+def get_city_num(line):
+    str_line = line.decode()
+    if(str_line[0] == "@"):
+        c_num = int(str_line[1:str_line.index('\r')])
+        return c_num               
         
 def weather(parsed_json):
     location = parsed_json['location']['city']
     temp_f = parsed_json['current_observation']['temp_f']
     weather = parsed_json['current_observation']['weather']
     precip_today = parsed_json['current_observation']['precip_today_in']
-    local_time_str= parsed_json['current_observation']['local_time_rfc822']
     
     LED(temp_f)
-    print (local_time_str)
     print ("Current weather in %s: %s" % (location, weather))
     print ("Current temperature in %s: %s" % (location, temp_f))
     print ("Precipitation today in %s will be: ~%s inches" % (location, precip_today))
@@ -131,7 +134,9 @@ def weather(parsed_json):
     ser.write("+".encode())
     ser.write(temp_E)
     ser.write("!".encode())
-    
+
+def print_time(h,m):
+    print("Current Time is %d : %d" %(h,m))
     
 
 ex_hour =0
@@ -140,8 +145,6 @@ stop_check = 1
 city_num = 850
 last_city_num = -1
 while(city_num != -1):
-    
-    
     if(ser.isOpen()==False):
         ser.open()
     if(ser.in_waiting>0):
@@ -149,6 +152,7 @@ while(city_num != -1):
         if(line!= b''):
             print(line)
             write_city_name(line)
+            city_num = get_city_num(line)
     if(last_city_num != city_num):    #update weather even without changing time zone
         weather(get_json(city_num))
         last_city_num = city_num
@@ -161,6 +165,7 @@ while(city_num != -1):
     if ex_hour != hour:
         if(ser.isOpen):
             weather(get_json(city_num))
+            print_time(hour,min)
             ex_hour = hour
             ser.write("/".encode())
             if hour<10:
@@ -173,6 +178,7 @@ while(city_num != -1):
             ser.close()
     if ex_min != min:
         if(ser.isOpen()):
+            print_time(hour,min)
             ex_min = min
             ser.write("/".encode())
             if hour<10:
