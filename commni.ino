@@ -33,7 +33,7 @@ unsigned long nextTime = 0;
 unsigned long lastDebounceTime_move = 0;
 unsigned long lastDebounceTime_plus = 0;
 unsigned long lastDebounceTime_dir_but = 0;
-int debounceDelay = 250;
+int debounceDelay = 400;
 
 boolean display_time;
 boolean cur_blink_status;
@@ -91,7 +91,7 @@ void loop() {
     }
   }
   
-  if(start_printing){
+  if(start_printing && buttons == 0){
     print_current_weather();
     start_printing = false;
   }
@@ -123,16 +123,17 @@ void loop() {
     matrix.writeDisplay();
   }
   buttons = lcd.readButtons();
-  if(buttons == 1 && millis()>lastDebounceTime_but && !select_state && !select_state){
+  if(buttons == 1 && millis()>lastDebounceTime_but && !select_state && !select_city){
       //Serial.println(33);
       select_state = true;
       select_city = false;
       lastDebounceTime_but = millis() + debounceDelay;
+      lcd.clear();
   }
-  if(select_state && millis() > lastDebounceTime_dir_but && !select_city){
+  if(select_state && !select_city && millis() > lastDebounceTime_dir_but){
     state_count = choose_state(state_count);
     state_print(state_count);
-    if(buttons == 1 &&  millis()>lastDebounceTime_but){
+    if(buttons == 1 && millis()>lastDebounceTime_but){
       select_state = false;
       select_city = true;
       lcd.clear();
@@ -148,16 +149,19 @@ void loop() {
       city_count = cur_city_count;
       if(cur_city_count<city_count) city_count -=1;
       city_n = get_city_num(state_count, city_count);
-      Serial.print('#');
+      Serial.print('#');  //actually digita write
       Serial.println(city_n);
     }
     cur_city_count = choose_city(cur_city_count);
     city_print(cur_city_count);
     if(buttons == 1 &&  millis()>lastDebounceTime_but){
+      select_state = false;
       select_city = false;
       city_n = get_city_num(state_count, cur_city_count);
       Serial.print('@');
       Serial.println(city_n);
+      city_count = -2;
+      cur_city_count = 0;
       lastDebounceTime_but = millis() + debounceDelay;
     }
     lastDebounceTime_dir_but = millis() + debounceDelay;
@@ -239,6 +243,8 @@ int get_city_num(int st_count, int ct_count){
     result = result + state_city_num[i];
   }
   result = result + ct_count;
+  if(st_count == 44) return result+15;
+  if(st_count == 45 && ct_count<=14 && ct_count>=0) return result -1;
   return result;
 }
 

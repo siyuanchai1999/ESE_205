@@ -5,17 +5,16 @@ import json
 import RPi.GPIO as GPIO
 import time
 import csv
-ser = serial.Serial('/dev/ttyACM1',9600,timeout =0.3)
 
+ser = serial.Serial('/dev/ttyACM4',9600,timeout =0.3)
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
-hot_pin = 14
+hot_pin = 14 
 warm_pin = 15
 cold_pin = 18
 GPIO.setup(hot_pin,GPIO.OUT)
 GPIO.setup(warm_pin,GPIO.OUT)
 GPIO.setup(cold_pin,GPIO.OUT)
-    
 def LED(temp):
     if(temp>80):
         GPIO.output(hot_pin,GPIO.HIGH)
@@ -80,27 +79,31 @@ def get_min(string):
 def get_hour(string):
     colon_digit = string.index(':')
     return string[colon_digit-2:colon_digit]
-  
+
 def write_city_name(line):
     str_line = line.decode()
     if(str_line[0] == "#"):
         c_num = int(str_line[1:str_line.index('\r')])
-        c_str_1 = dict_city[c_num][3:]
-        c_str_2 = dict_city[c_num+1][3:]
+        c_str_1 = dict_city[c_num][3:18]
+        c_str_2 = dict_city[c_num+1][3:18]
+        c_str_1_head = dict_city[c_num][:3]
+        c_str_2_head = dict_city[c_num+1][:3]
         print(c_str_1)
-        print(c_str_2)
         ser.write("(".encode())
         ser.write(c_str_1.encode())
         ser.write("!".encode())
-        ser.write(")".encode())
-        ser.write(c_str_2.encode())
-        ser.write("!".encode())
+        if(c_str_1_head == c_str_2_head):
+            print(c_str_2)
+            ser.write(")".encode())
+            ser.write(c_str_2.encode())
+            ser.write("!".encode())
 
-def get_city_num(line):
+def get_city_num(line,c_num):
     str_line = line.decode()
     if(str_line[0] == "@"):
         c_num = int(str_line[1:str_line.index('\r')])
-        return c_num               
+        return c_num
+    return c_num
         
 def weather(parsed_json):
     location = parsed_json['location']['city']
@@ -152,7 +155,7 @@ while(city_num != -1):
         if(line!= b''):
             print(line)
             write_city_name(line)
-            city_num = get_city_num(line)
+            city_num = get_city_num(line,city_num)
     if(last_city_num != city_num):    #update weather even without changing time zone
         weather(get_json(city_num))
         last_city_num = city_num
