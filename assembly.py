@@ -5,8 +5,7 @@ import json
 import RPi.GPIO as GPIO
 import time
 import csv
-
-ser = serial.Serial('/dev/ttyACM4',9600,timeout =0.3)
+ser = serial.Serial('/dev/ttyACM0',9600,timeout =0.3)
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 hot_pin = 14 
@@ -17,7 +16,7 @@ GPIO.setup(warm_pin,GPIO.OUT)
 GPIO.setup(cold_pin,GPIO.OUT)
 def LED(temp):
     if(temp>80):
-        GPIO.output(hot_pin,GPIO.HIGH)
+        GPIO.ou8tput(hot_pin,GPIO.HIGH)
         GPIO.output(warm_pin,GPIO.LOW)
         GPIO.output(cold_pin,GPIO.LOW)
     elif(temp>60):
@@ -30,7 +29,7 @@ def LED(temp):
         GPIO.output(cold_pin,GPIO.HIGH)
 
 city_file = urlopen('https://www.wunderground.com/about/faq/US_cities.asp')
-
+'''
 txt = city_file.read().decode()
 first_point = txt.index('Central')
 end_point = txt.index('Peipeinimaru')
@@ -64,6 +63,17 @@ for i in range(entries-1):
         #print(dict_city[i])
         txt_list.pop(0)
         txt_list = txt_list[txt_list.index('\n'):]
+'''
+
+with open('valid_city_entries.json', 'r') as fp:
+    valid_city_entries = json.load(fp)
+
+dict_city = {}
+
+for i in valid_city_entries:
+        dict_city[int(i)] = valid_city_entries[i]
+
+print("done")
 
 def get_json(city_num):
     url_str = dict_city[city_num]
@@ -137,15 +147,14 @@ def weather(parsed_json):
     ser.write("+".encode())
     ser.write(temp_E)
     ser.write("!".encode())
-
+ 
 def print_time(h,m):
     print("Current Time is %d : %d" %(h,m))
-    
 
 ex_hour =0
 ex_min = 0
 stop_check = 1
-city_num = 850
+city_num = 734
 last_city_num = -1
 while(city_num != -1):
     if(ser.isOpen()==False):

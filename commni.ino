@@ -127,7 +127,7 @@ void loop() {
       //Serial.println(33);
       select_state = true;
       select_city = false;
-      lastDebounceTime_but = millis() + debounceDelay;
+      lastDebounceTime_but = millis() + debounceDelay+300;
       lcd.clear();
   }
   if(select_state && !select_city && millis() > lastDebounceTime_dir_but){
@@ -138,7 +138,7 @@ void loop() {
       select_city = true;
       lcd.clear();
       Serial.println("selecting cities");
-      lastDebounceTime_but = millis() + debounceDelay;
+      lastDebounceTime_but = millis() + debounceDelay+300;
     }
     lastDebounceTime_dir_but = millis() + debounceDelay;
   }
@@ -162,7 +162,7 @@ void loop() {
       Serial.println(city_n);
       city_count = -2;
       cur_city_count = 0;
-      lastDebounceTime_but = millis() + debounceDelay;
+      lastDebounceTime_but = millis() + debounceDelay+300;
     }
     lastDebounceTime_dir_but = millis() + debounceDelay;
   }
@@ -243,8 +243,8 @@ int get_city_num(int st_count, int ct_count){
     result = result + state_city_num[i];
   }
   result = result + ct_count;
-  if(st_count == 44) return result+15;
-  if(st_count == 45 && ct_count<=14 && ct_count>=0) return result -1;
+  if(st_count == 44) return result+14;
+  if(st_count == 45 && ct_count<=14 && ct_count>=0) return result -2;
   return result;
 }
 
