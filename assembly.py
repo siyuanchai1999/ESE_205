@@ -5,18 +5,34 @@ import json
 import RPi.GPIO as GPIO
 import time
 import csv
-ser = serial.Serial('/dev/ttyACM0',9600,timeout =0.3)
+ 
+ser = serial.Serial('/dev/ttyUSB1',9600,timeout =0.3)
+nextTime = time.time()
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 hot_pin = 14 
 warm_pin = 15
 cold_pin = 18
+on_pin = 23
+blink_status = False
+GPIO.setup(on_pin,GPIO.OUT)
 GPIO.setup(hot_pin,GPIO.OUT)
 GPIO.setup(warm_pin,GPIO.OUT)
 GPIO.setup(cold_pin,GPIO.OUT)
+
+GPIO.output(hot_pin,GPIO.HIGH)
+GPIO.output(warm_pin,GPIO.HIGH)
+GPIO.output(cold_pin,GPIO.HIGH)
+time.sleep(2)
+
+GPIO.output(hot_pin,GPIO.LOW)
+GPIO.output(warm_pin,GPIO.LOW)
+GPIO.output(cold_pin,GPIO.LOW)
+
+
 def LED(temp):
     if(temp>80):
-        GPIO.ou8tput(hot_pin,GPIO.HIGH)
+        GPIO.output(hot_pin,GPIO.HIGH)
         GPIO.output(warm_pin,GPIO.LOW)
         GPIO.output(cold_pin,GPIO.LOW)
     elif(temp>60):
@@ -29,43 +45,8 @@ def LED(temp):
         GPIO.output(cold_pin,GPIO.HIGH)
 
 city_file = urlopen('https://www.wunderground.com/about/faq/US_cities.asp')
-'''
-txt = city_file.read().decode()
-first_point = txt.index('Central')
-end_point = txt.index('Peipeinimaru')
-new_txt = txt[first_point:end_point]  #eliminate other data from website
-txt_list = list(new_txt)
-txt_list.insert(0,'\n')
-dict_city = {}
 
-city = ' '
-state = ' ' 
-space_index = 0
-init_index = 0
-entries = txt_list.count('\n')
-
-def get_str(start, end):
-    result  = str('')
-    for i in range(start, end):
-        result = result + str(txt_list[i])
-    return result
-
-for i in range(entries-1):
-        space_index = txt_list.index(' ')
-        while txt_list[space_index+1] !=  ' ':
-            #print(space_index)
-            temp = txt_list[space_index + 1:]
-            space_index = temp.index(' ')+space_index+1
-        city = get_str(init_index+1,space_index)
-        city = city.replace(' ', '_')
-        state = get_str(init_index+31,init_index+33)
-        dict_city[i] =  state + '/' + city
-        #print(dict_city[i])
-        txt_list.pop(0)
-        txt_list = txt_list[txt_list.index('\n'):]
-'''
-
-with open('valid_city_entries.json', 'r') as fp:
+with open('/home/pi/Desktop/commni/valid_city_entries.json', 'r') as fp:
     valid_city_entries = json.load(fp)
 
 dict_city = {}
@@ -126,7 +107,8 @@ def weather(parsed_json):
     print ("Current temperature in %s: %s" % (location, temp_f))
     print ("Precipitation today in %s will be: ~%s inches" % (location, precip_today))
     m = "Precipitation today in %s will be: ~%s inches" % (location, precip_today)
-
+    
+    if(weather == "Clear"):  weather = "Sunny"
     locationE = location.encode()
     temp_E = str(temp_f).encode()
     weatherE = weather.encode()
@@ -157,6 +139,15 @@ stop_check = 1
 city_num = 734
 last_city_num = -1
 while(city_num != -1):
+    if(time.time()- nextTime>0):
+        #print(blink_status)
+        blink_status = not blink_status
+        if(blink_status):
+            GPIO.output(on_pin,GPIO.HIGH)
+        else:
+            GPIO.output(on_pin,GPIO.LOW)
+        nextTime = time.time() + 1.0
+    
     if(ser.isOpen()==False):
         ser.open()
     if(ser.in_waiting>0):
@@ -170,7 +161,7 @@ while(city_num != -1):
         last_city_num = city_num
         offset_str = get_json(city_num)['current_observation']['local_tz_offset']
         offset = int(offset_str[:3]) +6
-        
+     
     hour = time.localtime().tm_hour + offset
     min = time.localtime().tm_min
     

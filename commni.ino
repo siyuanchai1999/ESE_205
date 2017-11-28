@@ -18,11 +18,17 @@ Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 #define VIOLET 0x5
 #define WHITE 0x7
 
-const int num_pin = 3;
+#define trigPin 8 //distance sensor
+#define echoPin 9
+
+const int num_pin = 5;
 const int move_pin = 4;
-const int dirPin = 7; 
+
+const int dirPin2 = 3;
+const int stepperPin2 = 2;
+const int dirPin1 = 7; 
 const int stepperPin1 = 6;
-int digit[] = {1,8,1,2,4};
+int digit[] = {1,7,1,3,0};
 int time_digit[] = {0,0,1,0,0};
 int change_p = 0;     
 int i =0;
@@ -69,8 +75,12 @@ void setup() {
   Serial.begin(9600);
   pinMode(num_pin,INPUT_PULLUP);
   pinMode(move_pin,INPUT_PULLUP);
-  pinMode(dirPin, OUTPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(dirPin1, OUTPUT);
   pinMode(stepperPin1, OUTPUT);
+  pinMode(dirPin2, OUTPUT);
+  pinMode(stepperPin2, OUTPUT);
   display_time = true;
   time_setup = false;
   lcd.begin(16, 2);
@@ -167,9 +177,9 @@ void loop() {
     lastDebounceTime_dir_but = millis() + debounceDelay;
   }
   
-  if(compare_time(time_digit, digit) && time_setup){
+  if(compare_time(time_digit, digit) && time_setup && close_or_not()){
     Serial.println("working");
-    step(true,500);
+    step(true,160000);
   } 
 }
 
@@ -342,12 +352,15 @@ void update_info(char first_digit, int index){
 
 
 void step(boolean dir,int steps){
-  digitalWrite(dirPin,dir);
+  digitalWrite(dirPin1,dir);
+  digitalWrite(dirPin2, !dir);
   for(int i=0;i<steps;i++){
     digitalWrite(stepperPin1, HIGH);
-    delayMicroseconds(600);
+    digitalWrite(stepperPin2, HIGH);
+    delayMicroseconds(1000);
     digitalWrite(stepperPin1, LOW);
-    //delayMicroseconds(100);
+    digitalWrite(stepperPin2, LOW);
+    delayMicroseconds(1000);
   }
 }
 
@@ -402,9 +415,33 @@ void change_digit(int change_point){
 boolean compare_time(int time_digit[], int digit[]){
   int x = 0;
   for(x=0;x<5;x++){
+    if(x == 5){
+      if(time_digit[x] > digit[x] && time_digit[x] <digit[x]+4){
+        return true;
+      }
+    }
     if(time_digit[x] != digit[x]){
       return false;
     }
+    
+      
+    }
+}
+
+boolean close_or_not(){
+  long duration, distance;
+  digitalWrite(trigPin, LOW);  // Added this line
+  delayMicroseconds(2); // Added this line
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10); // Added this line
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  distance = (duration/2) / 29.1;
+  if (distance > 4){
+    return false;
   }
-  return true;
+  delay(250);
+  if (distance < 4) {
+    return true;
+  }
 }
