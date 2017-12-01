@@ -5,8 +5,9 @@ import json
 import RPi.GPIO as GPIO
 import time
 import csv
- 
-ser = serial.Serial('/dev/ttyUSB1',9600,timeout =0.3)
+
+ser = serial.Serial('/dev/ttyUSB0',9600,timeout =0.3)
+reboot_count = 0
 nextTime = time.time()
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -54,7 +55,7 @@ dict_city = {}
 for i in valid_city_entries:
         dict_city[int(i)] = valid_city_entries[i]
 
-print("done")
+print("done loading city entries")
 
 def get_json(city_num):
     url_str = dict_city[city_num]
@@ -71,7 +72,7 @@ def get_hour(string):
     colon_digit = string.index(':')
     return string[colon_digit-2:colon_digit]
 
-def write_city_name(line):
+def write_city_name(line):  #working whenn user selects cities
     str_line = line.decode()
     if(str_line[0] == "#"):
         c_num = int(str_line[1:str_line.index('\r')])
@@ -89,26 +90,38 @@ def write_city_name(line):
             ser.write(c_str_2.encode())
             ser.write("!".encode())
 
-def get_city_num(line,c_num):
+def get_city_num(line,c_num):  #when user confirm his choice
     str_line = line.decode()
     if(str_line[0] == "@"):
         c_num = int(str_line[1:str_line.index('\r')])
         return c_num
     return c_num
-        
-def weather(parsed_json):
+
+def write_time(h, m):
+    print_time(h,m)
+    ser.write("/".encode())
+    if h<10:
+        ser.write(b'0')
+    ser.write(b'%d' %h)
+    if m<10:
+        ser.write(b'0')
+    ser.write(b'%d'%m)
+    ser.write("!".encode())
+            
+
+def write_weather(parsed_json):
     location = parsed_json['location']['city']
     temp_f = parsed_json['current_observation']['temp_f']
     weather = parsed_json['current_observation']['weather']
     precip_today = parsed_json['current_observation']['precip_today_in']
     
     LED(temp_f)
+    #if(weather == "Clear"):  weather = "Sunny"
     print ("Current weather in %s: %s" % (location, weather))
     print ("Current temperature in %s: %s" % (location, temp_f))
     print ("Precipitation today in %s will be: ~%s inches" % (location, precip_today))
     m = "Precipitation today in %s will be: ~%s inches" % (location, precip_today)
     
-    if(weather == "Clear"):  weather = "Sunny"
     locationE = location.encode()
     temp_E = str(temp_f).encode()
     weatherE = weather.encode()
@@ -133,13 +146,26 @@ def weather(parsed_json):
 def print_time(h,m):
     print("Current Time is %d : %d" %(h,m))
 
+def when_reboot(line,h,m,num,reboot_c):
+    str_line = line.decode()
+    if(str_line[0] == "r" and str_line[1] == "e" and str_line[2] == "a"):
+        reboot_c = reboot_c +1;
+        if(reboot_c >1):
+            write_weather(get_json(num))
+            write_time(h,m)
+    return reboot_c
+
+            
+        
 ex_hour =0
 ex_min = 0
 stop_check = 1
 city_num = 734
 last_city_num = -1
+hour = 0
+min = 0
 while(city_num != -1):
-    if(time.time()- nextTime>0):
+    if(time.time()- nextTime>0):  #blinking to indicate RPI working
         #print(blink_status)
         blink_status = not blink_status
         if(blink_status):
@@ -156,8 +182,10 @@ while(city_num != -1):
             print(line)
             write_city_name(line)
             city_num = get_city_num(line,city_num)
+            reboot_count = when_reboot(line, hour, min,city_num,reboot_count)
+            
     if(last_city_num != city_num):    #update weather even without changing time zone
-        weather(get_json(city_num))
+        write_weather(get_json(city_num))
         last_city_num = city_num
         offset_str = get_json(city_num)['current_observation']['local_tz_offset']
         offset = int(offset_str[:3]) +6
@@ -167,31 +195,14 @@ while(city_num != -1):
     
     if ex_hour != hour:
         if(ser.isOpen):
-            weather(get_json(city_num))
-            print_time(hour,min)
+            write_weather(get_json(city_num))
             ex_hour = hour
-            ser.write("/".encode())
-            if hour<10:
-                m = ser.write(b'0')
-            m = ser.write(b'%d' %hour)
-            if min<10:
-                n = ser.write(b'0')
-            n = ser.write(b'%d'%min)
-            ser.write("!".encode())
+            write_time(hour,min)
             ser.close()
     if ex_min != min:
         if(ser.isOpen()):
-            print_time(hour,min)
             ex_min = min
-            ser.write("/".encode())
-            if hour<10:
-                m = ser.write(b'0')
-            m = ser.write(b'%d' %hour)
-            if min<10:
-                n = ser.write(b'0')
-            n = ser.write(b'%d'%min)
-            ser.write("!".encode())
+            write_time(hour,min)
             ser.close()
-    #city_num = int(input("press  to stop, city num to continue"))
 
                                                                                                                      

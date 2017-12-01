@@ -18,9 +18,6 @@ Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 #define VIOLET 0x5
 #define WHITE 0x7
 
-#define trigPin 8 //distance sensor
-#define echoPin 9
-
 const int num_pin = 5;
 const int move_pin = 4;
 
@@ -28,7 +25,7 @@ const int dirPin2 = 3;
 const int stepperPin2 = 2;
 const int dirPin1 = 7; 
 const int stepperPin1 = 6;
-int digit[] = {1,7,1,3,0};
+int digit[] = {1,8,1,3,0};
 int time_digit[] = {0,0,1,0,0};
 int change_p = 0;     
 int i =0;
@@ -39,6 +36,7 @@ unsigned long nextTime = 0;
 unsigned long lastDebounceTime_move = 0;
 unsigned long lastDebounceTime_plus = 0;
 unsigned long lastDebounceTime_dir_but = 0;
+unsigned long lastTime_motor = 0;
 int debounceDelay = 400;
 
 boolean display_time;
@@ -75,8 +73,6 @@ void setup() {
   Serial.begin(9600);
   pinMode(num_pin,INPUT_PULLUP);
   pinMode(move_pin,INPUT_PULLUP);
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
   pinMode(dirPin1, OUTPUT);
   pinMode(stepperPin1, OUTPUT);
   pinMode(dirPin2, OUTPUT);
@@ -177,10 +173,11 @@ void loop() {
     lastDebounceTime_dir_but = millis() + debounceDelay;
   }
   
-  if(compare_time(time_digit, digit) && time_setup && close_or_not()){
+  if(compare_time(time_digit, digit) && time_setup){
     Serial.println("working");
-    step(true,160000);
-  } 
+    lift_shades(30);
+    time_setup = false;
+  }
 }
 
 int choose_state(int st_count){
@@ -288,7 +285,46 @@ void print_current_weather(){
   lcd.setCursor(0, 1);  
   print_arr(weather);
   lcd.setCursor(0,0);
+  set_color();
   clear_all();
+}
+void set_color(){
+  double double_temp = get_double_temp();
+  if(double_temp > 75){
+    lcd.setBacklight(RED);
+  }else if(double_temp > 60){
+    lcd.setBacklight(YELLOW);
+  }else if(double_temp > 45){
+    lcd.setBacklight(GREEN);
+  }else{
+    lcd.setBacklight(TEAL);
+  }
+}
+
+int get_int(char a){
+  return (a-48);
+}
+
+double get_double_temp(){
+  int decimal_point = -1;
+  double result = 0.0;
+  double temporary = 0.0;
+  for(int i = 0;i<20;i++){
+    if(temp[i] == '.'){
+       decimal_point = i;
+    }      
+  }
+  for(int j = 0;j<20;j++){
+    if(temp[j] != 0 && temp[j] != '.'){
+      if(decimal_point - j >0){
+        temporary = pow(10, (decimal_point - j-1))*((double) get_int(temp[j]));
+      }else{
+        temporary = pow(10, (decimal_point - j))*((double) get_int(temp[j]));
+      }
+      result = result + temporary;
+    }
+  }
+  return result;
 }
 
 void clear_inData(){
@@ -351,16 +387,25 @@ void update_info(char first_digit, int index){
 }
 
 
-void step(boolean dir,int steps){
-  digitalWrite(dirPin1,dir);
-  digitalWrite(dirPin2, !dir);
+void step(boolean dir,long steps, int velo){
+  digitalWrite(dirPin1,!dir);
+  digitalWrite(dirPin2,!dir);
   for(int i=0;i<steps;i++){
     digitalWrite(stepperPin1, HIGH);
     digitalWrite(stepperPin2, HIGH);
-    delayMicroseconds(1000);
+    delayMicroseconds(velo);
     digitalWrite(stepperPin1, LOW);
     digitalWrite(stepperPin2, LOW);
-    delayMicroseconds(1000);
+    delayMicroseconds(velo); 
+  }
+}
+
+void lift_shades(int step_count){
+  for(int j = 0; j<step_count;j++){
+    step(true,1000*200,350); 
+  }
+  for(int j = 0; j<step_count;j++){
+    step(false,1000*200,100); 
   }
 }
 
@@ -416,32 +461,12 @@ boolean compare_time(int time_digit[], int digit[]){
   int x = 0;
   for(x=0;x<5;x++){
     if(x == 5){
-      if(time_digit[x] > digit[x] && time_digit[x] <digit[x]+4){
+      if(time_digit[x] >= digit[x] && time_digit[x] <digit[x]+4){
         return true;
       }
     }
     if(time_digit[x] != digit[x]){
       return false;
+    }   
     }
-    
-      
-    }
-}
-
-boolean close_or_not(){
-  long duration, distance;
-  digitalWrite(trigPin, LOW);  // Added this line
-  delayMicroseconds(2); // Added this line
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10); // Added this line
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  distance = (duration/2) / 29.1;
-  if (distance > 4){
-    return false;
-  }
-  delay(250);
-  if (distance < 4) {
-    return true;
-  }
 }
