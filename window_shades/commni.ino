@@ -7,8 +7,8 @@
 #include "city_state.h"
 
 //setting up pins
-Adafruit_7segment matrix = Adafruit_7segment();
-Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
+Adafruit_7segment matrix = Adafruit_7segment();    //https://learn.adafruit.com/adafruit-led-backpack/0-dot-56-seven-segment-backpack
+Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();  //https://learn.adafruit.com/rgb-lcd-shield/using-the-rgb-lcd-shield
 
 #define RED 0x1
 #define YELLOW 0x3
@@ -85,7 +85,7 @@ void setup() {
 }
 
 void loop() {
-  if(Serial.available()){
+  if(Serial.available()){     //read from raspberry pi
     if(index < arr_length){
       inChar = Serial.read(); // Read a character
       inData[index] = inChar; // Store it
@@ -116,7 +116,7 @@ void loop() {
     change_digit(change_p);
     blink_digit(change_p);
     mov = digitalRead(move_pin);
-    if(mov ==0 && millis()>lastDebounceTime_move){ //debouncing 
+    if(mov ==0 && millis()>lastDebounceTime_move){       //confirming time digit 
       change_p += 1;
       if(change_p == 2) change_p = 3;
       if(change_p == 5){
@@ -129,14 +129,14 @@ void loop() {
     matrix.writeDisplay();
   }
   buttons = lcd.readButtons();
-  if(buttons == 1 && millis()>lastDebounceTime_but && !select_state && !select_city){
+  if(buttons == 1 && millis()>lastDebounceTime_but && !select_state && !select_city){  //entering selecting state
       //Serial.println(33);
       select_state = true;
       select_city = false;
       lastDebounceTime_but = millis() + debounceDelay+300;
       lcd.clear();
   }
-  if(select_state && !select_city && millis() > lastDebounceTime_dir_but){
+  if(select_state && !select_city && millis() > lastDebounceTime_dir_but){   //selecting state
     state_count = choose_state(state_count);
     state_print(state_count);
     if(buttons == 1 && millis()>lastDebounceTime_but){
@@ -149,7 +149,7 @@ void loop() {
     lastDebounceTime_dir_but = millis() + debounceDelay;
   }
   
-  if(!select_state && select_city && millis() > lastDebounceTime_dir_but){
+  if(!select_state && select_city && millis() > lastDebounceTime_dir_but){  // selcting city
     if(cur_city_count- city_count> 1 || cur_city_count<city_count){
       lcd.clear();
       city_count = cur_city_count;
@@ -173,7 +173,7 @@ void loop() {
     lastDebounceTime_dir_but = millis() + debounceDelay;
   }
   
-  if(compare_time(time_digit, digit) && time_setup){
+  if(compare_time(time_digit, digit) && time_setup){  //working
     Serial.println("working");
     lift_shades(30);
     time_setup = false;
